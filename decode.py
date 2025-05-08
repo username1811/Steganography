@@ -1,63 +1,142 @@
 import os
 import wave
+import struct
+from writelog import write_log
 
-def decode_text_from_audio(audio_byte_array):
+def hamming_decode(encoded_bits):
     """
-    Decode the hidden text from an audio byte array using the LSB method.
-
+    Giải mã chuỗi bit sử dụng mã Hamming (7,4)
+    
     Args:
-        audio_byte_array (bytearray): The byte array of the encoded audio file.
-
+        encoded_bits (list): Danh sách các bit đã mã hóa Hamming
+        
     Returns:
-        str: The decoded secret text, or None if an error occurs.
+        list: Danh sách các bit dữ liệu gốc
     """
-    try:
-        # Extract the least significant bit from each byte
-        bits = [byte & 1 for byte in audio_byte_array]
+    decoded_bits = []
+    
+    # Xử lý từng nhóm 7 bit
+    for i in range(0, len(encoded_bits), 7):
+        if i + 6 < len(encoded_bits):
+            # Lấy 7 bit mã hóa (p1, p2, d1, p3, d2, d3, d4)
+            p1, p2, d1, p3, d2, d3, d4 = encoded_bits[i:i+7]
+            
+            # Kiểm tra lỗi (bỏ qua trong trường hợp này vì chúng ta 
+            # chỉ sử dụng mã Hamming để mã hóa)
+            
+            # Thêm 4 bit dữ liệu gốc
+            decoded_bits.extend([d1, d2, d3, d4])
+    
+    write_log("hamming_decode")
+    return decoded_bits
 
-        # Convert every 8 bits into a character
-        secret_chars = []
-        for i in range(0, len(bits), 8):
-            byte_bits = bits[i:i + 8]
-            if len(byte_bits) < 8:
+def bits_to_string(bits):
+    """
+    Chuyển danh sách các bit thành văn bản
+    
+    Args:
+        bits (list): Danh sách các bit
+        
+    Returns:
+        str: Văn bản đã giải mã
+    """
+    # Đảm bảo số bit là bội số của 8
+    while len(bits) % 8 != 0:
+        bits.append(0)
+    
+    text = ""
+    for i in range(0, len(bits), 8):
+        if i + 7 < len(bits):
+            byte = 0
+            for j in range(8):
+                byte = (byte << 1) | bits[i + j]
+            
+            # Dừng khi gặp ký tự '#' (dấu hiệu kết thúc)
+            if byte == ord('#'):
                 break
-            char_code = int(''.join(map(str, byte_bits)), 2)
-            character = chr(char_code)
-            secret_chars.append(character)
+                
+            text += chr(byte)
+    
+    write_log("bits_to_string")
+    return text
 
-        # Join characters and cut off at the terminator symbol '#'
-        padded_text = ''.join(secret_chars)
-        original_text = padded_text.split('#')[0]
-
-        return original_text
-    except Exception as e:
-        print("Error: Could not decode the text. {}".format(str(e)))
-        return None
-
+def decode_stsm(audio_path):
+    """
+    Giải mã thông điệp bí mật từ file âm thanh sử dụng phương pháp STSM
+    
+    Args:
+        audio_path (str): Đường dẫn đến file âm thanh đã mã hóa
+        
+    Returns:
+        str: Thông điệp bí mật
+    """
+    # Mở file âm thanh
+    with wave.open(audio_path, 'rb') as audio:
+        # Đọc thông tin header
+        params = audio.getparams()
+        n_channels = audio.getnchannels()
+        sample_width = audio.getsampwidth()
+        framerate = audio.getframerate()
+        n_frames = audio.getnframes()
+        
+        # Đọc toàn bộ dữ liệu
+        frames = audio.readframes(n_frames)
+    
+    # Chuyển samples từ bytes sang dạng số nguyên
+    samples = []
+    for i in range(0, len(frames), sample_width):
+        if i + sample_width <= len(frames):
+            if sample_width == 1:
+                sample = frames[i]
+                samples.append(sample)
+            elif sample_width == 2:
+                sample = struct.unpack('<h', frames[i:i+2])[0]
+                samples.append(sample)
+            elif sample_width == 4:
+                sample = struct.unpack('<i', frames[i:i+4])[0]
+                samples.append(sample)
+    
+    # Bước 1: Trích xuất các bit mã hóa
+    # Nhóm các mẫu thành nhóm 3 mẫu
+    encoded_bits = []
+    for i in range(0, len(samples) - 2, 3):
+        # Tính tổng của 3 mẫu
+        sample_sum = samples[i] + samples[i+1] + samples[i+2]
+        
+        # Xác định bit dựa trên tính chẵn lẻ của tổng
+        if sample_sum % 2 == 1:  # Tổng lẻ -> bit 1
+            encoded_bits.append(1)
+        else:  # Tổng chẵn -> bit 0
+            encoded_bits.append(0)
+    
+    # Bước 2: Giải mã Hamming
+    # Giải mã các bit sử dụng mã Hamming
+    decoded_bits = hamming_decode(encoded_bits)
+    
+    # Bước 3: Chuyển bit thành văn bản
+    secret_text = bits_to_string(decoded_bits)
+    
+    write_log("decode_stsm")
+    return secret_text
 
 if __name__ == "__main__":
-    audio_path = input("Enter the path to the WAV file (to extract the hidden message): ").strip()
-
+    audio_path = input("Enter wav file: ").strip()
+    
     if not os.path.isfile(audio_path):
-        print("Error: The file does not exist.")
+        print("File not found.")
         exit()
-
+    
     try:
-        audio = wave.open(audio_path, "rb")
-        n_frames = audio.getnframes()
-        frames = audio.readframes(n_frames)
-        audio_byte_array = bytearray(frames)
-        audio.close()
+        # Kiểm tra xem có phải file WAV không
+        with wave.open(audio_path, 'rb') as audio:
+            pass
     except wave.Error:
-        print("Error: Not a valid WAV file.")
+        print("invalid wav !")
         exit()
-    except Exception as e:
-        print("Error reading the audio file: {}".format(str(e)))
-        exit()
-
-    decoded_text = decode_text_from_audio(audio_byte_array)
-
-    if decoded_text:
-        print("Decoded secret text: {}".format(decoded_text))
+    
+    secret_text = decode_stsm(audio_path)
+    
+    if secret_text:
+        print("secret text is: " + secret_text)
     else:
-        print("Could not extract any secret text.")
+        print("can not decode")

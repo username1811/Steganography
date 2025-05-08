@@ -1,105 +1,192 @@
 import os
 import wave
+import struct
+from writelog import write_log
 
-
-def encode_text_to_audio(audio_byte_array, secret_text, max_bytes):
+def hamming_encode(data_bits):
     """
-    Encode a secret text into the audio byte array using the LSB method.
-
+    Mã hóa chuỗi bit sử dụng mã Hamming (7,4)
+    
     Args:
-        audio_byte_array (bytearray): The byte array of the audio file.
-        secret_text (str): The secret text to encode.
-        max_bytes (int): Maximum number of bytes that can be used for encoding.
-
+        data_bits (list): Danh sách các bit dữ liệu (mỗi phần tử 4 bit)
+        
     Returns:
-        bytes: The encoded audio byte array, or None if an error occurs.
+        list: Danh sách các bit đã mã hóa Hamming (mỗi phần tử 7 bit)
     """
-    try:
-        number_of_secret_text_bits = len(secret_text) * 8
-        if number_of_secret_text_bits > max_bytes * 8:
-            print("Error: Secret text is too long to encode in the audio file.")
-            return None
+    encoded_bits = []
+    
+    # Xử lý từng nhóm 4 bit
+    for i in range(0, len(data_bits), 4):
+        if i + 3 < len(data_bits):
+            # Lấy 4 bit dữ liệu
+            d1, d2, d3, d4 = data_bits[i:i+4]
+            
+            # Tính các bit chẵn lẻ
+            p1 = d1 ^ d2 ^ d4
+            p2 = d1 ^ d3 ^ d4  
+            p3 = d2 ^ d3 ^ d4
+            
+            # Thêm vào danh sách bit đã mã hóa
+            encoded_bits.extend([p1, p2, d1, p3, d2, d3, d4])
+    write_log("hamming_encode");
+    return encoded_bits
 
-        encoding_text = secret_text + '#' * (max_bytes - len(secret_text))
-
-        byte_array = []
-        for char in encoding_text:
-            binary_char = bin(ord(char)).lstrip('0b').rjust(8, '0')
-            byte_array.append(binary_char)
-
-        encoding_text_in_bits = ''.join(byte_array)
-        bits = [int(bit) for bit in encoding_text_in_bits]
-
-        for i in range(len(bits)):
-            audio_byte_array[i] = (audio_byte_array[i] & 254) | bits[i]
-
-        encoded_audio = bytes(audio_byte_array)
-
-        return encoded_audio
-    except Exception as e:
-        print("Error: Could not encode the text. {}".format(str(e)))
-        return None
-
-
-def save_encoded_audio(encoded_audio, original_audio_path, audio_obj):
+def string_to_bits(text):
     """
-    Save the encoded audio byte array to a new WAV file.
-
+    Chuyển văn bản thành danh sách các bit
+    
     Args:
-        encoded_audio (bytes): The encoded audio byte array.
-        original_audio_path (str): Path to the original audio file.
-        audio_obj (wave.Wave_read): Wave object of the original file.
-
+        text (str): Văn bản cần chuyển đổi
+        
     Returns:
-        str: Path to the new WAV file, or None if an error occurs.
+        list: Danh sách các bit
     """
-    try:
-        addr = os.path.dirname(original_audio_path)
-        ori_file_name = os.path.basename(original_audio_path).replace('.wav', '')
+    bits = []
+    for char in text:
+        # Chuyển mỗi ký tự thành 8 bit
+        char_bits = bin(ord(char))[2:].zfill(8)
+        for bit in char_bits:
+            bits.append(int(bit))
+    write_log("string_to_bits");
+    return bits
 
-        new_audio_file_address = os.path.join(addr, "{}-stego.wav".format(ori_file_name))
-
-        new_audio_file = wave.open(new_audio_file_address, 'wb')
-        new_audio_file.setparams(audio_obj.getparams())
-        new_audio_file.writeframes(encoded_audio)
-        new_audio_file.close()
-
-        return new_audio_file_address
-    except Exception as e:
-        print("Error: Could not save audio file. {}".format(str(e)))
+def encode_stsm(audio_path, secret_text, output_path=None):
+    """
+    Mã hóa văn bản bí mật vào file âm thanh sử dụng phương pháp STSM
+    
+    Args:
+        audio_path (str): Đường dẫn đến file âm thanh gốc
+        secret_text (str): Văn bản bí mật cần mã hóa
+        output_path (str, optional): Đường dẫn file đầu ra
+        
+    Returns:
+        str: Đường dẫn đến file âm thanh đã mã hóa
+    """
+    # Mở file âm thanh
+    with wave.open(audio_path, 'rb') as audio:
+        # Đọc thông tin header
+        params = audio.getparams()
+        n_channels = audio.getnchannels()
+        sample_width = audio.getsampwidth()
+        framerate = audio.getframerate()
+        n_frames = audio.getnframes()
+        
+        # Đọc toàn bộ dữ liệu
+        frames = audio.readframes(n_frames)
+    
+    # Tạo output path nếu chưa có
+    if output_path is None:
+        dir_name = os.path.dirname(audio_path)
+        file_name = os.path.basename(audio_path)
+        file_name_without_ext = os.path.splitext(file_name)[0]
+        output_path = os.path.join(dir_name, f"{file_name_without_ext}_steg.wav")
+    
+    # Bước 1: Mã hóa văn bản thành các bit
+    secret_text += "#"  # Thêm ký tự kết thúc
+    text_bits = string_to_bits(secret_text)
+    
+    # Đảm bảo độ dài là bội số của 4
+    while len(text_bits) % 4 != 0:
+        text_bits.append(0)
+    
+    # Áp dụng mã Hamming (7,4)
+    encoded_bits = hamming_encode(text_bits)
+    
+    # Chuyển samples từ bytes sang dạng số nguyên
+    samples = []
+    for i in range(0, len(frames), sample_width):
+        if i + sample_width <= len(frames):
+            if sample_width == 1:
+                sample = frames[i]
+                samples.append(sample)
+            elif sample_width == 2:
+                sample = struct.unpack('<h', frames[i:i+2])[0]
+                samples.append(sample)
+            elif sample_width == 4:
+                sample = struct.unpack('<i', frames[i:i+4])[0]
+                samples.append(sample)
+    
+    # Bước 2: Giấu tin
+    # Kiểm tra đủ không gian
+    required_samples = len(encoded_bits) * 3
+    if len(samples) < required_samples:
+        print(f"Lỗi: File âm thanh quá ngắn để giấu thông điệp. Cần ít nhất {required_samples} mẫu.")
         return None
-
+    
+    bit_index = 0
+    # Xử lý từng nhóm 3 mẫu liên tiếp
+    for i in range(0, len(samples) - 2, 3):
+        if bit_index >= len(encoded_bits):
+            break
+        
+        # Lấy bit hiện tại cần giấu
+        current_bit = encoded_bits[bit_index]
+        
+        # Tính tổng của 3 mẫu
+        sample_sum = samples[i] + samples[i+1] + samples[i+2]
+        is_odd = sample_sum % 2 == 1
+        
+        if current_bit == 1:
+            # Nếu bit là 1, tổng phải là lẻ
+            if not is_odd:  # Tổng hiện tại là chẵn
+                samples[i+1] += 1  # Điều chỉnh mẫu thứ 2
+        else:
+            # Nếu bit là 0, tổng phải là chẵn
+            if is_odd:  # Tổng hiện tại là lẻ
+                # Điều chỉnh mẫu 1 hoặc mẫu 3
+                samples[i] += 1  # Chọn điều chỉnh mẫu thứ 1
+        
+        bit_index += 1
+    
+    # Chuyển samples trở lại thành bytes
+    modified_frames = bytearray()
+    for sample in samples:
+        if sample_width == 1:
+            modified_frames.append(sample & 0xFF)
+        elif sample_width == 2:
+            modified_frames.extend(struct.pack('<h', sample))
+        elif sample_width == 4:
+            modified_frames.extend(struct.pack('<i', sample))
+    
+    # Ghi ra file mới
+    with wave.open(output_path, 'wb') as new_audio:
+        new_audio.setparams(params)
+        new_audio.writeframes(bytes(modified_frames))
+    
+    write_log("encode_stsm");
+    return output_path
 
 if __name__ == "__main__":
-    audio_path = input("Enter the path to the WAV file (to hide the message): ").strip()
-
+    audio_path = input("Enter wav file: ").strip()
+    
     if not os.path.isfile(audio_path):
-        print("Error: The file does not exist.")
+        print("File not found.")
         exit()
-
+    
     try:
-        audio = wave.open(audio_path, "rb")
-        n_frames = audio.getnframes()
-        frames = audio.readframes(n_frames)
-        audio_byte_array = bytearray(frames)
+        # Kiểm tra xem có phải file WAV không
+        with wave.open(audio_path, 'rb') as audio:
+            n_frames = audio.getnframes()
+            sample_width = audio.getsampwidth()
+            n_channels = audio.getnchannels()
     except wave.Error:
-        print("Error: Not a valid WAV file.")
+        print("Invalid wav file.")
         exit()
-
-    secret_text = input("Enter the secret text to encode: ").strip()
-
-    max_bytes = len(audio_byte_array) // 8
-
-    encoded_audio = encode_text_to_audio(audio_byte_array, secret_text, max_bytes)
-
-    if encoded_audio is not None:
-        output_path = save_encoded_audio(encoded_audio, audio_path, audio)
-
-        if output_path:
-            print("Encoding successful! Output saved to: {}".format(output_path))
-        else:
-            print("Failed to save encoded audio file.")
+    
+    secret_text = input("Enter secret text: ").strip()
+    
+    # Tính toán số byte tối đa có thể giấu
+    max_bits = n_frames // 3  # Mỗi bit cần 3 mẫu
+    max_hamming_groups = max_bits // 7  # Mỗi nhóm 7 bit hamming mã hóa cho 4 bit dữ liệu
+    max_chars = (max_hamming_groups * 4) // 8  # Chuyển bit thành ký tự (8 bit/ký tự)
+    
+    if len(secret_text) > max_chars:
+        print(f"Secret text is too long.")
+        exit()
+    
+    output_path = encode_stsm(audio_path, secret_text)
+    
+    if output_path:
+        print(f"Encode successfully, file save at: {output_path}")
     else:
-        print("Encoding failed.")
-
-    audio.close()
+        print("Encode failed.")
