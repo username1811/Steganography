@@ -1,7 +1,7 @@
 import os
 import wave
 import struct
-from writelog import write_log
+from writefile import write_file
 
 def hamming_encode(data_bits):
     """
@@ -28,7 +28,7 @@ def hamming_encode(data_bits):
             
             # Thêm vào danh sách bit đã mã hóa
             encoded_bits.extend([p1, p2, d1, p3, d2, d3, d4])
-    write_log("hamming_encode");
+    write_file("log.txt", "hamming_encode");
     return encoded_bits
 
 def string_to_bits(text):
@@ -47,7 +47,7 @@ def string_to_bits(text):
         char_bits = bin(ord(char))[2:].zfill(8)
         for bit in char_bits:
             bits.append(int(bit))
-    write_log("string_to_bits");
+    write_file("log.txt", "string_to_bits");
     return bits
 
 def encode_stsm(audio_path, secret_text, output_path=None):
@@ -153,7 +153,7 @@ def encode_stsm(audio_path, secret_text, output_path=None):
         new_audio.setparams(params)
         new_audio.writeframes(bytes(modified_frames))
     
-    write_log("encode_stsm");
+    write_file("log.txt", "encode_stsm");
     return output_path
 
 if __name__ == "__main__":

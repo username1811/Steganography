@@ -1,7 +1,7 @@
 import os
 import wave
 import struct
-from writelog import write_log
+from writefile import write_file
 
 def hamming_decode(encoded_bits):
     """
@@ -27,7 +27,7 @@ def hamming_decode(encoded_bits):
             # Thêm 4 bit dữ liệu gốc
             decoded_bits.extend([d1, d2, d3, d4])
     
-    write_log("hamming_decode")
+    write_file("log.txt", "hamming_decode");
     return decoded_bits
 
 def bits_to_string(bits):
@@ -57,7 +57,7 @@ def bits_to_string(bits):
                 
             text += chr(byte)
     
-    write_log("bits_to_string")
+    write_file("log.txt", "bits_to_string");
     return text
 
 def decode_stsm(audio_path):
@@ -116,7 +116,7 @@ def decode_stsm(audio_path):
     # Bước 3: Chuyển bit thành văn bản
     secret_text = bits_to_string(decoded_bits)
     
-    write_log("decode_stsm")
+    write_file("log.txt", "decode_stsm");
     return secret_text
 
 if __name__ == "__main__":
