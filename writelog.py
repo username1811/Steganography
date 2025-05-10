@@ -1,3 +1,7 @@
 def write_log(message):
-    with open('log.txt', 'a') as file:
-        file.write(f"{message}\n")
+    try:
+        with open('log.txt', 'a') as file:
+            file.write(f"{message}\n")
+    except FileNotFoundError:
+        with open('log.txt', 'w') as file:
+            file.write(f"{message}\n")
