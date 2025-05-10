@@ -135,8 +135,7 @@ if __name__ == "__main__":
         exit()
     
     secret_text = decode_stsm(audio_path)
-    
-    if secret_text:
-        print("secret text is: " + secret_text)
-    else:
-        print("can not decode")
+    write_file('message2.txt', secret_text)
+    with open('message2.txt', 'w') as file:
+            file.write(f"{secret_text}\n")
+    print("secret text is saved at message2.txt")
