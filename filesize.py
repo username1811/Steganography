@@ -1,4 +1,5 @@
 import os
+from writefile import write_file
 
 def get_wav_file_size(file_path):
     """
@@ -53,6 +54,8 @@ def compare_file_sizes(file_path1, file_path2):
         print(f"'{file_path2}' smaller than '{file_path1}' {size2 - size1} bytes.")
     else:
         print(f"'{file_path1}' and '{file_path2}' have the same size {size1} bytes.")
+    
+    write_file('log.txt', 'bytes')
 
 if __name__ == "__main__":
     file_path1 = input("Enter file wav 1: ").strip()
