@@ -28,7 +28,6 @@ def hamming_encode(data_bits):
             
             # Thêm vào danh sách bit đã mã hóa
             encoded_bits.extend([p1, p2, d1, p3, d2, d3, d4])
-    write_file("log.txt", "hamming_encode");
     return encoded_bits
 
 def string_to_bits(text):
@@ -47,7 +46,6 @@ def string_to_bits(text):
         char_bits = bin(ord(char))[2:].zfill(8)
         for bit in char_bits:
             bits.append(int(bit))
-    write_file("log.txt", "string_to_bits");
     return bits
 
 def encode_stsm(audio_path, secret_text, output_path=None):
@@ -173,7 +171,9 @@ if __name__ == "__main__":
         print("Invalid wav file.")
         exit()
     
-    secret_text = input("Enter secret text: ").strip()
+    secret_text_file = input("Enter secret text file: ").strip()
+    with open(secret_text_file, 'r', encoding='utf-8') as secretfile:
+        secret_text = secretfile.read()
     
     # Tính toán số byte tối đa có thể giấu
     max_bits = n_frames // 3  # Mỗi bit cần 3 mẫu
