@@ -35,7 +35,7 @@ Bài lab gồm các file sau:
 ### Bước 2: Sửa file message.txt
 
     nano message.txt
-
+Điền mã sinh viên
 
 ### Bước 3: Tiến hành giấu tin vào file WAV và xuất ra 1 file mới 
 
