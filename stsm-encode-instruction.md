@@ -47,7 +47,7 @@ Bài lab gồm các file sau:
     python3 hamming.py
 
 Nhập vào tên file message.txt
-### Bước 3: Tiến hành giấu tin vào file WAV và xuất ra 1 file mới 
+### Bước 4: Tiến hành giấu tin vào file WAV và xuất ra 1 file mới 
 
     python3 encode.py
 
@@ -58,7 +58,7 @@ Sau khi giấu tin thành công, đoạn mã sẽ tạo ra 1 file wav mới
 Sử dụng lệnh ls để xem file mới được tạo
 
 
-### Bước 4: Kiểm tra dung lượng file wav trước và sau khi giấu tin
+### Bước 5: Kiểm tra dung lượng file wav trước và sau khi giấu tin
 
     python3 filesize.py
 
