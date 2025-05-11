@@ -65,6 +65,7 @@ Nhập vào file wav sau khi giấu, thông điệp giải được sẽ đượ
 Sử dụng lệnh: 
 
     checkwork
+![checkwork-stsm-decode](https://github.com/user-attachments/assets/adc44d50-3ec9-45e0-b844-6677eaa19465)
 
 # 4. Kết thúc bài lab
 
