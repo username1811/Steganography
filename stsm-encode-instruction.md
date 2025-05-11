@@ -69,6 +69,7 @@ Nhập vào file wav trước và sau khi giấu
 Sử dụng lệnh: 
 
     checkwork
+![checkwork-stsm-encode](https://github.com/user-attachments/assets/ecbe06c5-020d-40a1-b9ff-9e164336a035)
 
 # 4. Kết thúc bài lab
 
