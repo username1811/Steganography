@@ -3,7 +3,7 @@ import struct
 import os
 from writefile import write_file
 
-def extract_bits(audio_path, max_samples=10000):
+def extract_bits(audio_path, max_samples=100):
     """
     Trích xuất các bit tiềm năng từ phần đầu file âm thanh bằng cách kiểm tra tổng của ba mẫu.
     
