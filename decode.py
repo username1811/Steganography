@@ -5,7 +5,7 @@ from writefile import write_file
 
 def hamming_decode(encoded_bits):
     """
-    Giải mã chuỗi bit sử dụng mã Hamming (7,4)
+    Giải mã chuỗi bit sử dụng mã Hamming (7,4) với kiểm tra và sửa lỗi
     
     Args:
         encoded_bits (list): Danh sách các bit đã mã hóa Hamming
@@ -21,15 +21,32 @@ def hamming_decode(encoded_bits):
             # Lấy 7 bit mã hóa (p1, p2, d1, p3, d2, d3, d4)
             p1, p2, d1, p3, d2, d3, d4 = encoded_bits[i:i+7]
             
-            # Kiểm tra lỗi (bỏ qua trong trường hợp này vì chúng ta 
-            # chỉ sử dụng mã Hamming để mã hóa)
+            # Tính hội chứng (syndrome)
+            # s1 = p1 ⊕ d1 ⊕ d2 ⊕ d4
+            s1 = p1 ^ d1 ^ d2 ^ d4
+            # s2 = p2 ⊕ d1 ⊕ d3 ⊕ d4
+            s2 = p2 ^ d1 ^ d3 ^ d4
+            # s3 = p3 ⊕ d2 ⊕ d3 ⊕ d4
+            s3 = p3 ^ d2 ^ d3 ^ d4
+            
+            # Xác định vị trí lỗi (nếu có)
+            error_pos = s1 + (s2 * 2) + (s3 * 4)
+            
+            # Sửa lỗi nếu cần
+            if error_pos > 0:
+                # Chuyển đổi thành chỉ số 0-based và sửa bit tại vị trí lỗi
+                error_index = error_pos - 1
+                if error_index < 7:
+                    encoded_bits[i + error_index] ^= 1  # Đảo bit lỗi
+            
+            # Cập nhật lại các bit sau khi sửa lỗi
+            p1, p2, d1, p3, d2, d3, d4 = encoded_bits[i:i+7]
             
             # Thêm 4 bit dữ liệu gốc
             decoded_bits.extend([d1, d2, d3, d4])
     
-    write_file("log.txt", "hamming_decode");
+    write_file("log.txt", "hamming_decode")
     return decoded_bits
-
 def bits_to_string(bits):
     """
     Chuyển danh sách các bit thành văn bản
